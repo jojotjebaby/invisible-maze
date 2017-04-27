@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Impossible maze</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="dist/css/master.css">
+</head>
+<body>
+
+<span class="helper"></span>
+<section class="wrapper">
+    <div id="the-maze"></div>
+
+    <div id="control-panel">
+
+        <div id="controls">
+            <div id="timer"></div>
+            <button class="control left" data-direction="left">&#8678;</button>
+            <button class="control up" data-direction="up">&#8679;</button>
+            <button class="control right" data-direction="right">&#8680;</button>
+            <button class="control down" data-direction="down">&#8681;</button>
+        </div>
+    </div>
+</section>
+
+
+
+<script type="application/javascript">
+    var maze = {
+
+        timeLocation : null,
+        theMaze : document.getElementById('the-maze'),
+        controls : document.getElementsByClassName("control"),
+        mazeArray: null,
+        player : null,
+        blocks : [],
+        steps : 0,
+        timer : null,
+
+        init: function(){
+
+            var self = this;
+            var range = 16;
+
+            //alert('welcome to the impossible maze');
+            this.mazeArray = this.generate( range );
+
+            //console.log( this.mazeArray );
+
+            //Append the maze to the page
+            this.theMaze.innerHTML += this.createView( this.mazeArray, range );
+            this.timerInit( range );
+
+            this.player = document.getElementById('player');
+            this.blocks = document.getElementsByClassName('block');
+
+            //console.log(this.controls.length);
+
+
+        },
+
+        /**
+         * This function will return an array. The array will have the number of the square as key and the border as value (0 = left, 1 = top, 2 = right, 3 = bottom)
+         * @param range
+         */
+        generate: function( range ){
+
+            var height = Math.sqrt( range );
+            var width = Math.sqrt( range );
+
+            var n= width * height - 1;
+            var horiz = []; for (var j= 0; j < width + 1; j++){ horiz[j]= [] };
+            var verti = []; for (var j= 0; j < width + 1; j++){ verti[j]= [] };
+            var here = [Math.floor(Math.random()*width), Math.floor(Math.random()* height)];
+            var path = [here];
+            var unvisited = [];
+
+            for (var j = 0; j< width +2; j++) {
+                unvisited[j] = [];
+                for (var k= 0; k < height + 1; k++){
+                    unvisited[j].push( j>0 && j< width +1 && k>0 && (j !== here[0]+1 || k !== here[1]+1));
+                }
+            }
+
+
+
+            while ( 0 < n) {
+                var potential = [[here[0]+1, here[1]], [here[0],here[1]+1],
+                    [here[0]-1, here[1]], [here[0],here[1]-1]];
+
+
+                //console.log('potential'  + potential);
+                var neighbors = [];
+                for (var j = 0; j < 4; j++)
+                    if (unvisited[potential[j][0]+1][potential[j][1]+1])
+                        neighbors.push(potential[j]);
+                if (neighbors.length) {
+                    n = n-1;
+                    next= neighbors[Math.floor(Math.random()*neighbors.length)];
+                    unvisited[next[0]+1][next[1]+1]= false;
+                    if (next[0] === here[0])
+                        horiz[next[0]][(next[1]+here[1]-1)/2]= true;
+                    else
+                        verti[(next[0]+here[0]-1)/2][next[1]]= true;
+                    path.push(here = next);
+                } else
+                    here = path.pop();
+            }
+
+            return {x: width, y: height, horiz: horiz, verti: verti};
+        },
+
+        createView: function( mazeArray ){
+
+            var mazeHTML = '<div class="row">';
+
+            for ( var j = 0; j < mazeArray.x; j++ ){
+
+                for( var i = 0; i < mazeArray.y; i++){
+
+                    mazeHTML += '<div data-x="' + i + '" data-y="' + j + '" class="block ';
+
+                    //Top is open
+                    if( mazeArray.horiz[j][i] !== true || ( i in mazeArray.horiz[j] ) === false){
+                        mazeHTML += 'right ';
+                    }
+                    if( j === 0){
+                        mazeHTML += 'top ';
+                    }
+                    if( i === 0){
+                        mazeHTML += 'left ';
+                    }
+
+                    //right side open
+                    if( mazeArray.verti[j][i] !== true || ( i in mazeArray.verti[j] ) === false){
+                        mazeHTML += 'bottom';
+                    }
+
+                    if( i === 0 && j === 0){
+                        mazeHTML += '"><div id="player">test</div></div>';
+                    }
+                    else{
+                        mazeHTML += '"></div>';
+                    }
+
+                }
+
+                mazeHTML += '</div><div class="row">';
+
+            }
+
+            mazeHTML += '</div>';
+
+            return mazeHTML;
+        },
+
+        beginGame: function(){
+            //Remove the borders
+            var self = this,
+                i;
+            for( i = 0; i < self.blocks.length; i++){
+                self.blocks[i].className = 'block';
+            }
+
+            //The event listeners for the buttons
+            for( i = 0; i < self.controls.length; i++){
+                self.controls[i].addEventListener("click", function( e ){
+                    e.stopPropagation();
+                    self.move( this.dataset.direction );
+                });
+            }
+        },
+
+        move: function( direction ){
+            var self = this;
+
+            this.steps++;
+            var x = parseInt( self.player.parentElement.dataset.x ),
+                y = parseInt( self.player.parentElement.dataset.y ),
+                newX = null,
+                newY = null,
+                newElementKey = null,
+                newElement = null,
+                elementKey = parseInt( x ) + ( parseInt( y ) * ( parseInt( this.mazeArray.y )));
+
+            //console.log('old coordinates x = ' + x + ' y = ' + y);
+            //console.log('block key = ' + elementKey);
+
+            switch ( direction){
+
+                //Check if the value of the horizontal current box - 1 is true. else the player dies
+                case 'left' :
+
+                    newX = parseInt( x ) - 1;
+                    newY = parseInt( y );
+
+                    //The player is on the left side of the grid. He cant go left.
+                    if( x === 0){
+                        console.log('you can not move you are on the left ridge');
+                    }
+                    else if( this.mazeArray.horiz[y][newX] === false){
+                        this.gameOver();
+                    }
+                    else{
+                        newElementKey = elementKey - 1;
+                        newElement = this.blocks[ newElementKey ];
+
+                        newElement.appendChild(this.player);
+                    }
+
+                    break;
+                case 'up' :
+
+                    newX = parseInt( x );
+                    newY = parseInt( y ) - 1;
+
+                    //The player is on the left side of the grid. He cant go left.
+                    if(  newX >= parseInt( this.mazeArray.x ) ){
+                        console.log('you can not move you are on the right ridge');
+                    }
+                    else if( typeof this.mazeArray.verti[newY][x] === 'undefined'){
+                        //Call the function to end the game !
+                        this.gameOver();
+                    }
+                    else{
+                        //Move the player
+                        newElementKey = elementKey - parseInt( this.mazeArray.x );
+                        newElement = this.blocks[ newElementKey ];
+                        newElement.appendChild(this.player);
+                    }
+
+
+                    break;
+                case 'right' :
+
+                    newX = parseInt( x ) + 1;
+                    newY = parseInt( y );
+
+                    //The player is on the left side of the grid. He cant go left.
+                    if(  newX >= parseInt( this.mazeArray.x ) ){
+                        console.log('you can not move you are on the right ridge');
+                    }
+                    else if( typeof this.mazeArray.horiz[y][x] === 'undefined'){
+
+                        //Call the function to end the game !
+                        this.gameOver();
+                    }
+                    else{
+                        //Move the player
+                        newElementKey = elementKey + 1;
+                        newElement = this.blocks[ newElementKey ];
+                        newElement.appendChild(this.player);
+                    }
+
+                    break;
+                case 'down' :
+
+                    newX = parseInt( x );
+                    newY = parseInt( y ) + 1;
+
+                    //The player is on the left side of the grid. He cant go left.
+                    if(  newY >= parseInt( this.mazeArray.y ) ){
+                        console.log('you can not move you are on the right ridge');
+                    }
+                    else if( typeof this.mazeArray.verti[y][x] === 'undefined'){
+                        //Call the function to end the game !
+                        this.gameOver();
+                    }
+                    else{
+                        //Move the player
+
+                        newElementKey = elementKey + ( parseInt( this.mazeArray.x ) );
+
+                        console.log( 'new block key =' + newElementKey);
+                        newElement = this.blocks[ newElementKey ];
+                        newElement.appendChild(this.player);
+                    }
+
+                    break;
+            }
+
+            //Check if the player has won ?!
+            this.checkWin(newElementKey);
+
+            x = parseInt( self.player.parentElement.dataset.x );
+            y = parseInt( self.player.parentElement.dataset.y );
+
+            //console.log('new coordinates x = ' + x + ' y = ' + y);
+
+
+
+        },
+
+        checkWin: function( key ){
+
+            var self = this;
+
+            setTimeout(function(){
+                var endBlock = (parseInt( self.mazeArray.x ) * parseInt( self.mazeArray.y )) - 1;
+                if( endBlock === key ){
+                    alert('you win !');
+                }
+            },10);
+        },
+
+        gameOver: function(){
+            alert( 'GAME OVER');
+        },
+
+        timerInit: function( range ) {
+
+            var time = 0,
+                self = this;
+
+            switch(range){
+                case 9:
+                    time = 5;
+                    break;
+
+                case 16:
+                    time = 10;
+                    break;
+
+                case 25:
+                    time = 15;
+                    break;
+
+                case 36:
+                    time = 20;
+                    break;
+            }
+            this.timeLocation = document.getElementById('timer');
+            this.timeLocation.innerHTML = time;
+            this.timer = window.setInterval( function(){ self.timerUpdate( self ); }, 1000);
+        },
+
+        timerStop: function(){
+
+        },
+
+        timerReset: function(){
+
+        },
+        timerUpdate: function( self ){
+
+            var timeRemaining = parseInt( self.timeLocation.innerHTML );
+            self.timeLocation.innerHTML = timeRemaining - (1000 /1000) ;
+
+            if( timeRemaining === 1){
+                self.beginGame();
+                clearInterval(self.timer);
+            }
+        }
+
+    };
+
+
+    maze.init();
+
+
+</script>
+
+</body>
+</html>
