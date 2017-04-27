@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "gulp": "",
+    "gulp-notify": "^3.0.0",
+    "gulp-rename": "",
+    "gulp-sass": "",
+    "gulp-sourcemaps": "",
+    "gulp-uglify": "",
+    "gulp-watch": ""
+  }
+}
